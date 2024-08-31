@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   chrome.storage.sync.get(['groupingThreshold', 'groupingAlgorithm'], (data) => {
     currentThresholdSpan.textContent = data.groupingThreshold || 4;
-    currentAlgorithmSpan.textContent = data.groupingAlgorithm || 'domain';
+    currentAlgorithmSpan.textContent = data.groupingAlgorithm === 'advanced' ? 'Advanced' : 'Domain';
   });
 
   groupNowButton.addEventListener('click', () => {
