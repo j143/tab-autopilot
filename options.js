@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   chrome.storage.sync.get(['groupingThreshold', 'groupingAlgorithm'], (data) => {
     thresholdInput.value = data.groupingThreshold || 4;
-    algorithmSelect.value = data.groupingAlgorithm || 'domain';
+    algorithmSelect.value = data.groupingAlgorithm || 'history';
   });
 
   saveButton.addEventListener('click', () => {
