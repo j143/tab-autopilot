@@ -1,13 +1,11 @@
 // background.js
-let groupingThreshold = 15;
+let groupingThreshold = 4;
+let groupingAlgorithm = 'domain'; // Default algorithm
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.sync.get('groupingThreshold', (data) => {
-    if (data.groupingThreshold === undefined) {
-      chrome.storage.sync.set({ groupingThreshold: 15 });
-    } else {
-      groupingThreshold = data.groupingThreshold;
-    }
+  chrome.storage.sync.get(['groupingThreshold', 'groupingAlgorithm'], (data) => {
+    groupingThreshold = data.groupingThreshold || 4;
+    groupingAlgorithm = data.groupingAlgorithm || 'domain';
   });
 });
 
@@ -22,50 +20,55 @@ function checkAndGroupTabs() {
 }
 
 function groupTabs(tabs) {
-  let currentGroup = [];
-  let currentDomain = '';
+  let ungroupedTabs = tabs.filter(tab => tab.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE);
+  
+  if (ungroupedTabs.length < groupingThreshold) return;
 
-  tabs.forEach((tab, index) => {
-    if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
-      // Skip tabs that are already grouped
-      if (currentGroup.length > 1) {
-        createGroup(currentGroup, currentDomain);
-      }
-      currentGroup = [];
-      currentDomain = '';
-    } else {
-      const domain = new URL(tab.url).hostname;
-      if (domain === currentDomain) {
-        currentGroup.push(tab.id);
-      } else {
-        if (currentGroup.length > 1) {
-          createGroup(currentGroup, currentDomain);
-        }
-        currentGroup = [tab.id];
-        currentDomain = domain;
-      }
+  let groups = {};
+
+  ungroupedTabs.forEach((tab) => {
+    let key = '';
+    try {
+      const url = new URL(tab.url);
+      key = groupingAlgorithm === 'domain' ? url.hostname : getUrlDistance(url);
+    } catch (error) {
+      console.error('Invalid URL:', tab.url);
+      key = 'other';
     }
 
-    // Handle the last group
-    if (index === tabs.length - 1 && currentGroup.length > 1) {
-      createGroup(currentGroup, currentDomain);
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(tab.id);
+  });
+
+  Object.entries(groups).forEach(([key, tabIds]) => {
+    if (tabIds.length > 1) {
+      chrome.tabs.group({ tabIds }, (groupId) => {
+        chrome.tabGroups.update(groupId, { title: key });
+      });
     }
   });
 }
 
-function createGroup(tabIds, domain) {
-  chrome.tabs.group({ tabIds }, (groupId) => {
-    chrome.tabGroups.update(groupId, { title: domain });
-  });
+function getUrlDistance(url) {
+  // Placeholder for advanced grouping algorithm
+  // This could be replaced with more sophisticated logic
+  return url.pathname.split('/')[1] || url.hostname;
 }
 
-// Update the message listener to return a proper response
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "groupTabs") {
     chrome.tabs.query({ currentWindow: true }, (tabs) => {
       groupTabs(tabs);
       sendResponse({success: true});
     });
-    return true;  // Indicates we will send a response asynchronously
+    return true;
+  } else if (request.action === "updateSettings") {
+    groupingThreshold = request.threshold;
+    groupingAlgorithm = request.algorithm;
+    chrome.storage.sync.set({ groupingThreshold, groupingAlgorithm });
+    sendResponse({success: true});
+    return true;
   }
 });
