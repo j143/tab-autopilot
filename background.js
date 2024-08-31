@@ -22,21 +22,50 @@ function checkAndGroupTabs() {
 }
 
 function groupTabs(tabs) {
-  const urlGroups = {};
+  let currentGroup = [];
+  let currentDomain = '';
 
-  tabs.forEach((tab) => {
-    const domain = new URL(tab.url).hostname;
-    if (!urlGroups[domain]) {
-      urlGroups[domain] = [];
+  tabs.forEach((tab, index) => {
+    if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
+      // Skip tabs that are already grouped
+      if (currentGroup.length > 1) {
+        createGroup(currentGroup, currentDomain);
+      }
+      currentGroup = [];
+      currentDomain = '';
+    } else {
+      const domain = new URL(tab.url).hostname;
+      if (domain === currentDomain) {
+        currentGroup.push(tab.id);
+      } else {
+        if (currentGroup.length > 1) {
+          createGroup(currentGroup, currentDomain);
+        }
+        currentGroup = [tab.id];
+        currentDomain = domain;
+      }
     }
-    urlGroups[domain].push(tab.id);
-  });
 
-  Object.entries(urlGroups).forEach(([domain, tabIds]) => {
-    if (tabIds.length > 1) {
-      chrome.tabs.group({ tabIds }, (groupId) => {
-        chrome.tabGroups.update(groupId, { title: domain });
-      });
+    // Handle the last group
+    if (index === tabs.length - 1 && currentGroup.length > 1) {
+      createGroup(currentGroup, currentDomain);
     }
   });
 }
+
+function createGroup(tabIds, domain) {
+  chrome.tabs.group({ tabIds }, (groupId) => {
+    chrome.tabGroups.update(groupId, { title: domain });
+  });
+}
+
+// Update the message listener to return a proper response
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "groupTabs") {
+    chrome.tabs.query({ currentWindow: true }, (tabs) => {
+      groupTabs(tabs);
+      sendResponse({success: true});
+    });
+    return true;  // Indicates we will send a response asynchronously
+  }
+});

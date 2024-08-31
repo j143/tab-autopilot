@@ -1,20 +1,27 @@
 // options.js
 document.addEventListener('DOMContentLoaded', () => {
-    const thresholdInput = document.getElementById('threshold');
-    const saveButton = document.getElementById('save');
-  
-    chrome.storage.sync.get('groupingThreshold', (data) => {
-      thresholdInput.value = data.groupingThreshold || 15;
-    });
-  
-    saveButton.addEventListener('click', () => {
-      const newThreshold = parseInt(thresholdInput.value);
-      if (newThreshold >= 2 && newThreshold <= 100) {
-        chrome.storage.sync.set({ groupingThreshold: newThreshold }, () => {
-          alert('Settings saved!');
-        });
+  const currentThresholdSpan = document.getElementById('currentThreshold');
+  const groupNowButton = document.getElementById('groupNow');
+  const openOptionsButton = document.getElementById('openOptions');
+
+  // Display current threshold
+  chrome.storage.sync.get('groupingThreshold', (data) => {
+    currentThresholdSpan.textContent = data.groupingThreshold || 15;
+  });
+
+  // Group tabs now
+  groupNowButton.addEventListener('click', () => {
+    chrome.runtime.sendMessage({action: "groupTabs"}, (response) => {
+      if (response && response.success) {
+        alert('Tabs grouped successfully!');
       } else {
-        alert('Please enter a number between 2 and 100.');
+        alert('Error grouping tabs. Please try again.');
       }
     });
   });
+
+  // Open options page
+  openOptionsButton.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
+});
