@@ -3,9 +3,12 @@
     "name": "Automatic Tab Grouper",
     "version": "1.0",
     "description": "Automatically groups tabs based on URL similarity",
-    "permissions": ["tabs", "tabGroups"],
+    "permissions": ["tabs", "tabGroups", "storage"],
     "background": {
       "service_worker": "background.js"
     },
-    "options_page": "options.html"
-}
+    "options_page": "options.html",
+    "action": {
+      "default_popup": "popup.html"
+    }
+  }
